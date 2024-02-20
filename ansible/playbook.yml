@@ -1,0 +1,101 @@
+---
+- hosts: all # part running on all hosts
+  become: true
+  tasks:
+  - name: install packages 
+    apt:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - auditd
+
+  - name: set timezone to Europe/Moscow
+    shell:
+      cmd: "timedatectl set-timezone Europe/Moscow"
+
+  - name: set ntp
+    shell:
+      cmd: "timedatectl set-ntp true"
+
+- hosts: log 
+  become: true
+  tasks:
+  - name: install rsyslog
+    apt:
+      name:  "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - rsyslog
+ 
+  - name: copy rsyslog configure
+    copy:
+      src: log/rsyslog.conf
+      dest: /etc/rsyslog.conf
+
+  - name: restart rsyslog
+    systemd:
+      name: rsyslog
+      state: restarted
+      enabled: yes
+
+  - name: copy audit configure
+    copy:
+      src: log/auditd.conf
+      dest: /etc/audit/auditd.conf
+
+  - name: restart auditd
+    systemd:
+      name: auditd
+      state: restarted
+      enabled: yes
+
+- hosts: web 
+  become: true
+  tasks:
+  - name: install nginx audispd-plugins
+    apt:
+      name:  "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - nginx
+      - audispd-plugins 
+
+  - name: copy nginx configure
+    copy:
+      src: web/nginx.conf
+      dest: /etc/nginx/nginx.conf
+
+  - name: restart nginx
+    systemd:
+      name: nginx
+      state: restarted
+      enabled: yes
+
+  - name: copy audit rules
+    copy:
+      src: web/audit.rules
+      dest: /etc/audit/rules.d/audit.rules
+ 
+  - name: copy audit configure
+    copy:
+      src: web/auditd.conf
+      dest: /etc/audit/auditd.conf
+ 
+  - name: copy audit remote
+    copy:
+      src: web/au-remote.conf
+      dest: /etc/audit/plugins.d/au-remote.conf
+ 
+  - name: copy audit remote server
+    copy:
+      src: web/audisp-remote.conf
+      dest: /etc/audit/audisp-remote.conf
+
+  - name: restart auditd
+    systemd:
+      name: auditd
+      state: restarted
+      enabled: yes      
